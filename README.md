@@ -68,11 +68,17 @@ button demonstrates the first case.
    **`https://otters.api`** and signing algorithm **RS256**. In **Permissions**,
    add **`feed:otters`** (description: “Feed an otter a snack”). Use that exact
    identifier as `AUTH0_AUDIENCE` in the web app and infra.
-2. In **Applications → Applications**, create a **Regular Web Application**.
+2. For the `https://otters.api` API, open **Settings → RBAC Settings**, enable
+   both **Enable RBAC** and **Add Permissions in the Access Token**, and save.
+   Under **User Management → Users → your user → Permissions**, assign
+   **`feed:otters`**. With RBAC enabled, only users assigned that permission
+   receive the requested feeding scope. Without RBAC, any user who requests
+   the scope gets it; requesting a scope is not a per-user permission grant.
+3. In **Applications → Applications**, create a **Regular Web Application**.
    Record its domain (hostname only), client ID and client secret. This is a
    confidential Next.js application, not an SPA application type; secrets stay
    on the Next.js server and never use a `NEXT_PUBLIC_` prefix.
-3. Configure and save these application URLs:
+4. Configure and save these application URLs:
 
    | Setting | Local value |
    | --- | --- |
@@ -80,10 +86,9 @@ button demonstrates the first case.
    | Allowed Logout URLs | `http://localhost:3000` |
    | Allowed Web Origins | `http://localhost:3000` |
 
-4. Enable a connection your test user can use. Ensure the application's API
-   access/consent policy permits the requested audience and scope. If **RBAC**
-   is enabled on the API, create a role with `feed:otters` and assign it to the
-   test user. The permission must appear in the access token's **`scope`**
+5. Enable a connection your test user can use. Ensure the application's API
+   access/consent policy permits the requested audience and scope.
+   The permission must appear in the access token's **`scope`**
    (or `scp`) claim; a `permissions` array alone is not what this route checks.
    Sign out/in after changing grants. Keep consent policies appropriate for
    your tenant rather than disabling consent globally for this demo.
@@ -273,7 +278,7 @@ web/
 | --- | --- |
 | CORS / “Failed to fetch” | Compare the browser's exact `Origin` with `ALLOWED_ORIGINS`, then redeploy the API. Ensure unauthenticated OPTIONS allows `authorization,content-type`. Inspect preflight in DevTools; CORS can hide an underlying API error. |
 | 401 despite signing in | Use an **access token**, not ID token. Its `aud` must match `AUTH0_AUDIENCE` and `iss` must match `https://AUTH0_DOMAIN/`. Check expiration, clock, tenant/custom domain consistency and JWKS reachability. Sign out/in after audience changes. |
-| 403 when feeding | Token `scope` must contain exactly `feed:otters`. Request it in `AUTH0_SCOPE`, define the API permission, and grant the user/role when RBAC is on. A `permissions` array alone is insufficient. Obtain a fresh token after grant changes. |
+| 403 when feeding | Check that the API has **Enable RBAC** and **Add Permissions in the Access Token** enabled and that the user has the `feed:otters` permission under **User → Permissions**. Token `scope` must contain exactly `feed:otters`; request it in `AUTH0_SCOPE`. A `permissions` array alone is insufficient. Obtain a fresh token after grant changes. |
 | Callback/logout rejected | Save exact app URLs in Auth0, including callback path and local port. Update `APP_BASE_URL` for Vercel. |
 | Local API exits immediately | Create `infra/.env.local` with domain/audience; omit `https://` from the domain. Check :4000 is free. |
 | Web calls an old API URL | Restart `next dev`, or rebuild/redeploy production after changing `NEXT_PUBLIC_API_URL`. |
