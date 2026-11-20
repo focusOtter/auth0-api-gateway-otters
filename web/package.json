@@ -1,0 +1,1 @@
+{"name":"web","private":true,"scripts":{"dev":"next dev","build":"next build","start":"next start","lint":"eslint ."},"dependencies":{"next":"^16.4.6","react":"^19.2.0","react-dom":"^19.2.0","@auth0/nextjs-auth0":"^4.33.0"},"devDependencies":{"@types/react":"^19","@types/react-dom":"^19","tailwindcss":"^4","@tailwindcss/postcss":"^4","eslint":"^9","eslint-config-next":"^16.4.6"}}
