@@ -4,6 +4,8 @@
 API Gateway HTTP API with an Auth0 JWT authorizer.”** Meet the raft, deliver a
 snack, and watch API Gateway enforce the security boundary before Lambda runs.
 
+**Live demo:** https://auth0-api-gateway-otters.vercel.app — Next.js on Vercel calling the REST API stack in us-east-1, using the Auth0 demo tenant.
+
 Topics: `Auth0` · `AWS API Gateway HTTP API` · `JWT authorizer` · `AWS CDK` ·
 `Lambda` · `Next.js` · `CORS` · `TypeScript`
 
