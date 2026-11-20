@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getAccessToken, useUser } from '@auth0/nextjs-auth0';
 import { RiverMark } from './marks';
+import { sessionLabel } from '../lib/session-label';
 
 type Otter = { id: string; name: string; species: string; river: string; favoriteSnack: string };
 type Result = { label: string; status: number | null; body: unknown };
@@ -15,6 +16,19 @@ export default function Home() {
   const [otters, setOtters] = useState<Otter[]>([]);
   const [result, setResult] = useState<Result | null>(null);
   const [busy, setBusy] = useState(false);
+  const [displayToken, setDisplayToken] = useState<{ subject: string; token: string } | null>(null);
+  const subject = user?.sub;
+
+  useEffect(() => {
+    if (!subject) return;
+    let active = true;
+    getAccessToken().then(token => {
+      if (active) setDisplayToken({ subject, token });
+    }).catch(() => {
+      if (active) setDisplayToken(null);
+    });
+    return () => { active = false; };
+  }, [subject]);
 
   async function call(path: string, authenticated = false, snack?: string) {
     setBusy(true);
@@ -40,7 +54,7 @@ export default function Home() {
     <main>
       <header className="nav shell">
         <Link className="brand" href="/" aria-label="Otter Ops home"><span aria-hidden="true"><RiverMark /></span> OTTER OPS<span className="edition">FIELD STATION / 01</span></Link>
-        <div className="account"><span className="session"><i />{isLoading ? 'Checking session' : user ? 'Ranger on duty' : 'Visitor mode'}</span><a className="button small" href={user ? '/auth/logout' : '/auth/login'}>{user ? 'Sign out ↗' : 'Ranger sign in ↗'}</a></div>
+        <div className="account"><span className="session"><i />{sessionLabel(isLoading, !!user, displayToken?.subject === subject ? displayToken?.token : undefined)}</span><a className="button small" href={user ? '/auth/logout' : '/auth/login'}>{user ? 'Sign out ↗' : 'Ranger sign in ↗'}</a></div>
       </header>
 
       <section className="hero shell">
