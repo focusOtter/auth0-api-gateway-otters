@@ -97,6 +97,14 @@ for placeholder, name, x, y, size in [
     architecture = architecture.replace('{{' + placeholder + '}}', icon(name, x, y, size))
 (DOCS / 'architecture.html').write_text(page('Otter Ops architecture', architecture, 1280))
 
+rest_architecture = architecture.replace('architecture-title', 'architecture-rest-title').replace('architecture-desc', 'architecture-rest-desc')
+rest_architecture = rest_architecture.replace('API Gateway HTTP API', 'API Gateway REST API')
+rest_architecture = rest_architecture.replace('OTTER OPS / ARCHITECTURE / 01', 'OTTER OPS / REST ARCHITECTURE / 02')
+rest_architecture = rest_architecture.replace('CORS preflight', 'CORS · Lambda adapter')
+rest_architecture = rest_architecture.replace('OPTIONS · no token required', 'OPTIONS · 204 · no token required')
+rest_architecture = rest_architecture.replace('CDK provisions API Gateway + Lambda.', 'REST claims: authorizer.claims.sub')
+(DOCS / 'architecture-rest.html').write_text(page('Otter Ops REST architecture', rest_architecture, 1280))
+
 marks = (DOCS.parent / 'web/app/marks.tsx').read_text()
 otter = marks.split("kind === 'otter' ? <>")[1].split('</>')[0]
 for jsx, xml in [('strokeWidth', 'stroke-width'), ('strokeLinecap', 'stroke-linecap')]:

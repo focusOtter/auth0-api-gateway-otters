@@ -31,6 +31,8 @@ With Playwright + Chromium installed in your Python environment, use the
 ```sh
 python3 "$DIAGRAM_SKILL/scripts/export_png.py" docs/architecture.html docs/architecture.png 2
 python3 "$DIAGRAM_SKILL/scripts/export_svg.py" docs/architecture.html docs/architecture.svg
+python3 "$DIAGRAM_SKILL/scripts/export_png.py" docs/architecture-rest.html docs/architecture-rest.png 2
+python3 "$DIAGRAM_SKILL/scripts/export_svg.py" docs/architecture-rest.html docs/architecture-rest.svg
 python3 "$DIAGRAM_SKILL/scripts/export_png.py" docs/og.html docs/og.png 1
 ```
 
