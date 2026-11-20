@@ -230,9 +230,17 @@ Unlike HTTP API's managed CORS, REST Lambda proxy integrations must return CORS
 headers themselves. A thin REST adapter calls the same handlers and adds headers
 only for configured origins. Unauthenticated OPTIONS methods use the adapter to
 return 204, GET/POST/OPTIONS, `authorization,content-type` and a 3600-second max age;
-disallowed origins receive no allow-origin header. Gateway-generated errors
-(including authorizer 401/403) happen before Lambda and do not have these CORS
-headers, so browsers can mask them as CORS errors; use curl to inspect the status.
+disallowed origins receive no allow-origin header from the adapter.
+Gateway responses for `UNAUTHORIZED` (401), `ACCESS_DENIED` (403), `DEFAULT_4XX`
+and `DEFAULT_5XX` also include CORS headers, so the browser can display the
+401/403 demo even when requests are rejected before Lambda runs. These static
+responses use `Access-Control-Allow-Origin: *` if `ALLOWED_ORIGINS` contains `*`;
+otherwise they use the **first configured origin**. They also return
+`Access-Control-Allow-Headers: authorization,content-type` and `Vary: Origin`.
+**One origin per stage is recommended for REST**: with several configured
+origins, only the first can read gateway-generated errors in the browser.
+Use that origin for the demo; Lambda responses and preflight still honor the
+full configured list. Prefer an explicit origin rather than `*` in production.
 
 ![REST API architecture](docs/architecture-rest.png)
 

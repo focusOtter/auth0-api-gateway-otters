@@ -1,5 +1,5 @@
 import { CfnOutput, Stack, StackProps } from 'aws-cdk-lib';
-import { AuthorizationType, CfnAuthorizer, CfnMethod, LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
+import { AuthorizationType, CfnAuthorizer, CfnMethod, LambdaIntegration, ResponseType, RestApi } from 'aws-cdk-lib/aws-apigateway';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Construct } from 'constructs';
@@ -15,6 +15,17 @@ export class OttersRestApiStack extends Stack {
     if (domain.includes('://') || domain.includes('/')) throw new Error('AUTH0_DOMAIN must be a hostname, without https:// or a trailing slash.');
     const origins = (config('ALLOWED_ORIGINS') || 'http://localhost:3000').split(',').map(origin => origin.trim()).filter(Boolean);
     const api = new RestApi(this, 'OttersRestApi');
+    const gatewayOrigin = origins.includes('*') ? '*' : origins[0];
+    for (const type of [ResponseType.UNAUTHORIZED, ResponseType.ACCESS_DENIED, ResponseType.DEFAULT_4XX, ResponseType.DEFAULT_5XX]) {
+      api.addGatewayResponse(type.responseType, {
+        type,
+        responseHeaders: {
+          'Access-Control-Allow-Origin': `'${gatewayOrigin}'`,
+          'Access-Control-Allow-Headers': "'authorization,content-type'",
+          Vary: "'Origin'",
+        },
+      });
+    }
     const authorizer = new CfnAuthorizer(this, 'Auth0', {
       restApiId: api.restApiId,
       name: 'Auth0',

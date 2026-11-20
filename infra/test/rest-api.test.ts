@@ -14,6 +14,31 @@ const event = (origin?: string, sub: unknown = 'auth0|river') => ({
 }) as unknown as APIGatewayProxyEvent;
 
 describe('REST JWT gateway', () => {
+  it.each([
+    ['https://river.example, http://localhost:3000', 'https://river.example'],
+    ['https://river.example, *', '*'],
+    ['', 'http://localhost:3000'],
+    [undefined, 'http://localhost:3000'],
+  ])('adds static gateway error CORS for origins %s', (origins, expectedOrigin) => {
+    vi.stubEnv('AUTH0_DOMAIN', 'otters.auth0.com');
+    vi.stubEnv('AUTH0_AUDIENCE', 'https://otters.api');
+    vi.stubEnv('ALLOWED_ORIGINS', origins);
+    const template = Template.fromStack(new OttersRestApiStack(new App(), 'GatewayCors'));
+    template.resourceCountIs('AWS::ApiGateway::GatewayResponse', 4);
+    for (const type of ['UNAUTHORIZED', 'ACCESS_DENIED', 'DEFAULT_4XX', 'DEFAULT_5XX']) {
+      template.hasResourceProperties('AWS::ApiGateway::GatewayResponse', {
+        ResponseType: type,
+        ResponseParameters: {
+          'gatewayresponse.header.Access-Control-Allow-Origin': `'${expectedOrigin}'`,
+          'gatewayresponse.header.Access-Control-Allow-Headers': "'authorization,content-type'",
+          'gatewayresponse.header.Vary': "'Origin'",
+        },
+      });
+    }
+    for (const response of Object.values(template.findResources('AWS::ApiGateway::GatewayResponse'))) {
+      expect(response.Properties.StatusCode).toBeUndefined();
+    }
+  });
   it('requires configuration and validates the domain', () => {
     vi.stubEnv('AUTH0_DOMAIN', '');
     vi.stubEnv('AUTH0_AUDIENCE', '');
