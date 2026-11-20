@@ -164,6 +164,11 @@ this variant does not use a Lambda authorizer or a Cognito user pool.
 Both variants use the same facts, roster and snack handlers. HTTP API exposes
 claims under `requestContext.authorizer.jwt.claims`; REST Lambda proxy events
 use `requestContext.authorizer.claims`. The shared caller helper accepts both.
+As of November 2026, our live REST service did not forward claims to the Lambda
+proxy event. For protected REST handlers only, the adapter falls back to decoding
+`sub` from the gateway-validated Bearer token when the documented claims are absent.
+It does not verify the token again: API Gateway has already validated its signature,
+issuer, audience, expiry and required scope before invoking these methods.
 The unchanged local emulator mimics the common routes, JWT/scope checks and
 CORS behavior of both variants, not every gateway-specific feature (REST's
 60-second JWT clock-skew allowance, for example).

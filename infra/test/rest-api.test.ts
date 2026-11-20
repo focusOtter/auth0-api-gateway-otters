@@ -93,6 +93,36 @@ describe('REST JWT gateway', () => {
 });
 
 describe('REST Lambda adapter', () => {
+  const bearer = (payload: unknown) => `Bearer e30.${Buffer.from(JSON.stringify(payload)).toString('base64url')}.c2ln`;
+  it('uses the gateway-validated token when the live proxy event omits claims', async () => {
+    const input = event();
+    Reflect.deleteProperty(input.requestContext, 'authorizer');
+    input.headers = { authorization: bearer({ sub: 'auth0|fallback' }) };
+    for (const handler of [roster, snacks]) {
+      const response = await handler(input);
+      expect(response.statusCode).toBe(200);
+      expect(JSON.parse(response.body).caller).toBe('auth0|fallback');
+    }
+    expect(input.requestContext.authorizer).toBeUndefined();
+  });
+  it('prefers documented claims even when a bearer token has a different subject', async () => {
+    const input = event();
+    input.headers = { Authorization: bearer({ sub: 'auth0|fallback' }) };
+    expect(JSON.parse((await roster(input)).body).caller).toBe('auth0|river');
+    input.requestContext.authorizer = { claims: { sub: '' } };
+    expect((await roster(input)).statusCode).toBe(401);
+  });
+  it.each([
+    undefined, '', 'Basic abc', 'Bearer garbage', 'Bearer a.b.c.d', 'Bearer e30.%%%.c2ln',
+    `Bearer e30.${Buffer.from('{').toString('base64url')}.c2ln`,
+    ...[null, [], {}, { sub: '' }, { sub: 42 }, { sub: null }].map(bearer),
+  ])('rejects missing or malformed fallback credentials: %j', async authorization => {
+    const input = event();
+    input.requestContext.authorizer = null;
+    input.headers = { Authorization: authorization };
+    expect((await roster(input)).statusCode).toBe(401);
+    expect((await snacks(input)).statusCode).toBe(401);
+  });
   it('reads REST claims in both shared handlers', async () => {
     expect(JSON.parse((await roster(event())).body).caller).toBe('auth0|river');
     expect(JSON.parse((await snacks(event())).body).caller).toBe('auth0|river');
