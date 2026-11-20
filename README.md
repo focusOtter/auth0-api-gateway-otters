@@ -153,6 +153,107 @@ curl -i -X OPTIONS http://localhost:4000/otters/miso/snacks \
   -H 'Access-Control-Request-Headers: authorization,content-type'
 ```
 
+## Choose HTTP API or REST API
+
+The existing **HTTP API** remains the default: choose it for a streamlined,
+lower-cost API with native JWT authorization. Choose the **REST API** variant
+when you need REST features such as usage plans/API keys, request validation,
+or private API endpoints. REST APIs now also support native JWT authorizers;
+this variant does not use a Lambda authorizer or a Cognito user pool.
+
+Both variants use the same facts, roster and snack handlers. HTTP API exposes
+claims under `requestContext.authorizer.jwt.claims`; REST Lambda proxy events
+use `requestContext.authorizer.claims`. The shared caller helper accepts both.
+The unchanged local emulator mimics the common routes, JWT/scope checks and
+CORS behavior of both variants, not every gateway-specific feature (REST's
+60-second JWT clock-skew allowance, for example).
+
+After [bootstrapping CDK](#deploy-to-aws-and-vercel), deploy **one** variant:
+
+```sh
+export AUTH0_DOMAIN=your-tenant.us.auth0.com
+export AUTH0_AUDIENCE=https://otters.api
+export ALLOWED_ORIGINS=http://localhost:3000,https://your-app.vercel.app
+
+# Existing HTTP API (default)
+npm run deploy -w infra -- OttersApiStack
+
+# REST API (selects OttersRestApiStack instead)
+npm run deploy -w infra -- -c apiType=rest OttersRestApi
+```
+
+Use the selected stack's `ApiUrl` for `NEXT_PUBLIC_API_URL`, without its trailing
+slash. The REST URL includes its stage (`/prod`); keep that path. Rebuild the web
+app after changing this value. Deploying the other variant does not delete an
+already-deployed stack; destroy unused stacks explicitly to avoid charges.
+
+### REST authorizer configuration
+
+The latest npm `aws-cdk-lib` checked, **2.277.0**, has neither a REST JWT L2 nor
+the new `JwtConfiguration` L1 field. The stack uses `CfnAuthorizer` with a
+documented CloudFormation property override, plus `CfnMethod` authorization:
+
+```ts
+const authorizer = new CfnAuthorizer(this, 'Auth0', {
+  restApiId: api.restApiId,
+  name: 'Auth0',
+  type: 'JWT',
+  identitySource: 'method.request.header.Authorization',
+});
+authorizer.addPropertyOverride('JwtConfiguration', {
+  DefaultAlgorithms: ['RS256'],
+  Issuers: [{ Issuer: `https://${domain}/`, Audiences: [audience] }],
+});
+const method = snacks.addMethod('POST', snacksIntegration);
+const cfnMethod = method.node.defaultChild as CfnMethod;
+cfnMethod.authorizationType = 'JWT';
+cfnMethod.authorizerId = authorizer.ref;
+cfnMethod.authorizationScopes = ['feed:otters'];
+```
+
+CDK's bundled CloudFormation validator also predates the new field, so REST
+synth emits `JwtConfiguration: Additional properties are not allowed` as a
+warning even though the current AWS documentation explicitly defines it.
+No validation checks are disabled. To synthesize either variant from the root:
+
+```sh
+npm run synth -w infra
+npm run synth -w infra -- -c apiType=rest
+```
+
+Facts use `AuthorizationType: NONE`; roster uses JWT without method scopes.
+API Gateway accepts any one of a method's configured scopes in `scope` or `scp`.
+An invalid token yields 401; a valid token without the feeding scope yields 403.
+REST also requires publicly reachable OIDC discovery and JWKS endpoints.
+
+Unlike HTTP API's managed CORS, REST Lambda proxy integrations must return CORS
+headers themselves. A thin REST adapter calls the same handlers and adds headers
+only for configured origins. Unauthenticated OPTIONS methods use the adapter to
+return 204, GET/POST/OPTIONS, `authorization,content-type` and a 3600-second max age;
+disallowed origins receive no allow-origin header from the adapter.
+Gateway responses for `UNAUTHORIZED` (401), `ACCESS_DENIED` (403), `DEFAULT_4XX`
+and `DEFAULT_5XX` also include CORS headers, so the browser can display the
+401/403 demo even when requests are rejected before Lambda runs. These static
+responses use `Access-Control-Allow-Origin: *` if `ALLOWED_ORIGINS` contains `*`;
+otherwise they use the **first configured origin**. They also return
+`Access-Control-Allow-Headers: authorization,content-type` and `Vary: Origin`.
+**One origin per stage is recommended for REST**: with several configured
+origins, only the first can read gateway-generated errors in the browser.
+Use that origin for the demo; Lambda responses and preflight still honor the
+full configured list. Prefer an explicit origin rather than `*` in production.
+
+![REST API architecture](docs/architecture-rest.png)
+
+[REST diagram HTML](docs/architecture-rest.html) · [REST diagram SVG](docs/architecture-rest.svg)
+
+Research sources:
+- [AWS announcement (November 17, 2026)](https://aws.amazon.com/about-aws/whats-new/2026/11/amazon-api-gateway-rest-jwt-authorizers/)
+- [Create a REST JWT authorizer (includes CloudFormation example)](https://docs.aws.amazon.com/apigateway/latest/developerguide/rest-api-jwt-authorizer-create.html)
+- [CloudFormation Authorizer](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-apigateway-authorizer.html) and [JwtConfiguration](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-apigateway-authorizer-jwtconfiguration.html)
+- [Per-method scopes](https://docs.aws.amazon.com/apigateway/latest/developerguide/rest-api-jwt-authorizer-methods.html) and [REST claims event shape](https://docs.aws.amazon.com/apigateway/latest/developerguide/rest-api-jwt-authorizer-claims.html)
+- [REST CORS and proxy integration responsibilities](https://docs.aws.amazon.com/apigateway/latest/developerguide/how-to-cors.html)
+- [CDK changelog](https://github.com/aws/aws-cdk/blob/main/CHANGELOG.v2.md) and [npm package](https://www.npmjs.com/package/aws-cdk-lib/v/2.277.0)
+
 ## The CDK security boundary
 
 Key pieces from [`OttersApiStack`](infra/lib/otters-api-stack.ts), with route
