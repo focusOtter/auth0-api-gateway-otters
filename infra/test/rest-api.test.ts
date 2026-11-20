@@ -14,6 +14,21 @@ const event = (origin?: string, sub: unknown = 'auth0|river') => ({
 }) as unknown as APIGatewayProxyEvent;
 
 describe('REST JWT gateway', () => {
+  it('replaces the deployment when issuer or audience changes', () => {
+    vi.stubEnv('ALLOWED_ORIGINS', 'http://localhost:3000');
+    const deploymentId = (domain: string, audience: string) => {
+      vi.stubEnv('AUTH0_DOMAIN', domain);
+      vi.stubEnv('AUTH0_AUDIENCE', audience);
+      const template = Template.fromStack(new OttersRestApiStack(new App(), 'Deployment'));
+      const ids = Object.keys(template.findResources('AWS::ApiGateway::Deployment'));
+      expect(ids).toHaveLength(1);
+      return ids[0];
+    };
+    const original = deploymentId('otters.auth0.com', 'https://otters.api');
+    expect(deploymentId('otters.auth0.com', 'https://otters.api')).toBe(original);
+    expect(deploymentId('otters.auth0.com', 'https://other.api')).not.toBe(original);
+    expect(deploymentId('other.auth0.com', 'https://otters.api')).not.toBe(original);
+  });
   it.each([
     ['https://river.example, http://localhost:3000', 'https://river.example'],
     ['https://river.example, *', '*'],

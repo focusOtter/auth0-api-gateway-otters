@@ -37,6 +37,7 @@ export class OttersRestApiStack extends Stack {
       DefaultAlgorithms: ['RS256'],
       Issuers: [{ Issuer: `https://${domain}/`, Audiences: [audience] }],
     });
+    api.latestDeployment?.addToLogicalId({ issuer: `https://${domain}/`, audience });
     const integration = (name: string, handler: string) => new LambdaIntegration(new NodejsFunction(this, `${name}Handler`, {
       runtime: Runtime.NODEJS_22_X,
       entry: path.join(__dirname, '../lambda/rest.ts'),
