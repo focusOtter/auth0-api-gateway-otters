@@ -17,6 +17,9 @@ describe('otter handlers', () => {
     const response = await roster(event());
     expect(response.statusCode).toBe(200);
     expect(JSON.parse(response.body)).toMatchObject({ caller: 'auth0|river', otters: expect.arrayContaining([expect.objectContaining({ id: 'miso' })]) });
+    for (const otter of JSON.parse(response.body).otters) {
+      expect(Object.keys(otter).sort()).toEqual(['favoriteSnack', 'id', 'name', 'river', 'species']);
+    }
   });
   it('rejects a missing caller', async () => {
     const missing = event();
